@@ -6,7 +6,7 @@ use dep::aztec::{
     oracle::{execution::{get_block_number, get_contract_address}, unsafe_rand::unsafe_rand, storage::storage_read}
 };
 
-use crate::{types::{token_note::TokenNote, transparent_note::TransparentNote}, Token};
+use crate::{types::{transparent_note::TransparentNote}, Token};
 
 pub fn setup(with_account_contracts: bool) -> (&mut TestEnvironment, AztecAddress, AztecAddress, AztecAddress) {
     // Setup env, generate keys

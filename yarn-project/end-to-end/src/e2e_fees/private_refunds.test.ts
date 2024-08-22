@@ -100,7 +100,7 @@ describe('e2e_fees/private_refunds', () => {
         t.aliceAddress,
         token.address,
         deriveStorageSlotInMap(TokenContract.storage.balances.slot, t.aliceAddress),
-        TokenContract.notes.TokenNote.id,
+        TokenContract.notes.IntNote.id,
         txHash,
       ),
     );
@@ -120,7 +120,7 @@ describe('e2e_fees/private_refunds', () => {
         t.bobAddress,
         token.address,
         deriveStorageSlotInMap(TokenContract.storage.balances.slot, t.bobAddress),
-        TokenContract.notes.TokenNote.id,
+        TokenContract.notes.IntNote.id,
         txHash,
       ),
     );

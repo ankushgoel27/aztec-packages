@@ -5,7 +5,7 @@ use dep::aztec::{
     note::{note_getter::view_notes, note_emission::{NoteEmission, OuterNoteEmission}},
     keys::{getters::get_current_public_keys, public_keys::NpkM}
 };
-use crate::types::token_note::OwnedNote;
+use dep::uint_note::uint_note::OwnedNote;
 
 struct BalanceSet<T, Context> {
     set: PrivateSet<T, Context>,

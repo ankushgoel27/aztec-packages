@@ -13,6 +13,7 @@ mod test;
 contract Token {
     // Libs
 
+    use dep::uint_note::uint_note::{UintNote, UintNoteHidingPoint};
     use dep::compressed_string::FieldCompressedString;
 
     use dep::aztec::{
@@ -32,10 +33,7 @@ contract Token {
     use dep::authwit::auth::{assert_current_call_valid_authwit, assert_current_call_valid_authwit_public, compute_authwit_nullifier};
     // docs:end:import_authwit
 
-    use crate::types::{
-        transparent_note::TransparentNote, token_note::{TokenNote, TokenNoteHidingPoint},
-        balance_set::BalanceSet
-    };
+    use crate::types::{transparent_note::TransparentNote, balance_set::BalanceSet};
     // docs:end::imports
 
     // In the first transfer iteration we are computing a lot of additional information (validating inputs, retrieving
@@ -64,7 +62,7 @@ contract Token {
         minters: Map<AztecAddress, PublicMutable<bool>>,
         // docs:end:storage_minters
         // docs:start:storage_balances
-        balances: Map<AztecAddress, BalanceSet<TokenNote>>,
+        balances: Map<AztecAddress, BalanceSet<UintNote>>,
         // docs:end:storage_balances
         total_supply: PublicMutable<U128>,
         // docs:start:storage_pending_shields
@@ -541,25 +539,25 @@ contract Token {
 
         // 4. We create the partial notes for the fee payer and the user.
         // --> Called "partial" because they don't have the amount set yet (that will be done in `complete_refund(...)`).
-        let fee_payer_partial_note = TokenNote {
+        let fee_payer_partial_note = UintNote {
             header: NoteHeader {
                 contract_address: AztecAddress::zero(),
                 nonce: 0,
                 storage_slot: storage.balances.at(fee_payer).set.storage_slot,
                 note_hash_counter: 0
             },
-            amount: U128::zero(),
+            value: U128::zero(),
             npk_m_hash: fee_payer_npk_m_hash,
             randomness: fee_payer_randomness
         };
-        let user_partial_note = TokenNote {
+        let user_partial_note = UintNote {
             header: NoteHeader {
                 contract_address: AztecAddress::zero(),
                 nonce: 0,
                 storage_slot: storage.balances.at(user).set.storage_slot,
                 note_hash_counter: 0
             },
-            amount: U128::zero(),
+            value: U128::zero(),
             npk_m_hash: user_npk_m_hash,
             randomness: user_randomness
         };
@@ -589,10 +587,10 @@ contract Token {
     #[aztec(internal)]
     fn complete_refund(
         // TODO(#7771): the following makes macros crash --> try getting it work once we migrate to metaprogramming
-        // mut fee_payer_point: TokenNoteHidingPoint,
-        // mut user_point: TokenNoteHidingPoint,
-        fee_payer_point_immutable: TokenNoteHidingPoint,
-        user_point_immutable: TokenNoteHidingPoint,
+        // mut fee_payer_point: UintNoteHidingPoint,
+        // mut user_point: UintNoteHidingPoint,
+        fee_payer_point_immutable: UintNoteHidingPoint,
+        user_point_immutable: UintNoteHidingPoint,
         funded_amount: Field
     ) {
         // TODO(#7771): nuke the following 2 lines once we have mutable args
