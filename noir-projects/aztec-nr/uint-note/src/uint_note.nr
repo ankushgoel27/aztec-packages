@@ -60,6 +60,9 @@ impl NoteInterface<UINT_NOTE_LEN, UINT_NOTE_BYTES_LEN> for UintNote {
 }
 
 impl UintNote {
+    fn new(value: U128, owner_npk_m_hash: Field) -> Self {
+        Self { value, npk_m_hash: owner_npk_m_hash, randomness: unsafe_rand(), header: NoteHeader::empty() }
+    }
     // TODO: Merge this func with `compute_note_hiding_point`. I (benesjan) didn't do it in the initial PR to not have
     // to modify macros and all the related funcs in it.
     fn to_note_hiding_point(self) -> UintNoteHidingPoint {

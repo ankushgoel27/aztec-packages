@@ -122,7 +122,7 @@ Then we just emit `P_a.x` and `P_b.x` as a note hashes, and we're done!
 
 This is implemented in the example token contract:
 
-#include_code compute_note_hiding_point noir-projects/noir-contracts/contracts/token_contract/src/types/token_note.nr rust
+#include_code compute_note_hiding_point noir-projects/aztec-nr/uint-note/src/uint_note.nr rust
 
 Those `G_x` are generators that generated [here](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/noir-projects/noir-projects/aztec-nr/aztec/src/generators.nr). Anyone can use them for separating different fields in a "partial note".
 

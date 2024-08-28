@@ -62,7 +62,7 @@ contract Token {
         minters: Map<AztecAddress, PublicMutable<bool>>,
         // docs:end:storage_minters
         // docs:start:storage_balances
-        balances: Map<AztecAddress, BalanceSet<UintNote>>,
+        balances: Map<AztecAddress, BalanceSet>,
         // docs:end:storage_balances
         total_supply: PublicMutable<U128>,
         // docs:start:storage_pending_shields
