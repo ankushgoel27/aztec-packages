@@ -77,9 +77,9 @@ pub fn get_historical_public_keys(historical_header: Header, account: AztecAddre
         // If nothing was written to the registry, we may still be able to produce the correct keys if we happen to know
         // the canonical set (i.e. the ones that are part of the account's preimage).
         let (hinted_canonical_public_keys, partial_address) = get_public_keys_and_partial_address(account);
-        assert_eq(
-            account, AztecAddress::compute(hinted_canonical_public_keys.hash(), partial_address), "Invalid public keys hint for address"
-        );
+        // assert_eq(
+        //     account, AztecAddress::compute(hinted_canonical_public_keys.hash(), partial_address), "Invalid public keys hint for address"
+        // );
 
         hinted_canonical_public_keys
     }
@@ -94,7 +94,8 @@ fn key_registry_hash_public_historical_read(historical_header: Header, account: 
     // (prior to siloing!), we simply add the length to the base slot to get the last element.
     let hash_storage_slot = keys_storage_slot + PUBLIC_KEYS_LENGTH as Field;
 
-    historical_header.public_storage_historical_read(hash_storage_slot, CANONICAL_KEY_REGISTRY_ADDRESS)
+    // historical_header.public_storage_historical_read(hash_storage_slot, CANONICAL_KEY_REGISTRY_ADDRESS)
+    0
 }
 
 unconstrained fn key_registry_get_stored_keys_hint(account: AztecAddress, block_number: u32) -> PublicKeys {

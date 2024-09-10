@@ -1,3 +1,5 @@
+use std::bigint::BigField;
+
 mod types;
 
 // Minimal token implementation that supports `AuthWit` accounts and SharedMutable variables.
@@ -202,20 +204,25 @@ contract TokenBlacklist {
     // docs:start:transfer_private
     #[aztec(private)]
     fn transfer(from: AztecAddress, to: AztecAddress, amount: Field, nonce: Field) {
-        let from_roles = storage.roles.at(from).get_current_value_in_private();
-        assert(!from_roles.is_blacklisted, "Blacklisted: Sender");
-        let to_roles = storage.roles.at(to).get_current_value_in_private();
-        assert(!to_roles.is_blacklisted, "Blacklisted: Recipient");
+        // let from_roles = storage.roles.at(from).get_current_value_in_private();
+        // assert(!from_roles.is_blacklisted, "Blacklisted: Sender");
+        // let to_roles = storage.roles.at(to).get_current_value_in_private();
+        // assert(!to_roles.is_blacklisted, "Blacklisted: Recipient");
 
-        if (!from.eq(context.msg_sender())) {
-            assert_current_call_valid_authwit(&mut context, from);
-        } else {
-            assert(nonce == 0, "invalid nonce");
-        }
+        context.set_tx_max_block_number(12);
+
+        assert(context.max_block_number.unwrap_unchecked() as Field != 0, "zero value not expected - bug reproduction failed");
+
+        // if (!from.eq(context.msg_sender())) {
+        //     assert_current_call_valid_authwit(&mut context, from);
+        // } else {
+        //     assert(nonce == 0, "invalid nonce");
+        // }
 
         let amount = U128::from_integer(amount);
-        storage.balances.sub(from, amount).emit(encode_and_encrypt_note(&mut context, from, from));
+        // storage.balances.sub(from, amount).emit(encode_and_encrypt_note(&mut context, from, from));
         storage.balances.add(to, amount).emit(encode_and_encrypt_note(&mut context, from, to));
+        assert(context.max_block_number.unwrap_unchecked() as Field != 0, "bug reproduction success - context reset to zero");
     }
 
     #[aztec(private)]
@@ -256,4 +263,12 @@ contract TokenBlacklist {
     unconstrained fn balance_of_private(owner: AztecAddress) -> pub Field {
         storage.balances.balance_of(owner).to_field()
     }
+}
+
+fn main(
+    inputs: dep::aztec::context::inputs::PrivateContextInputs,
+    from: Field, to: Field, amount: Field, nonce: Field
+) -> pub Field {
+    TokenBlacklist::transfer(inputs, dep::aztec::prelude::AztecAddress::from_field(from), dep::aztec::prelude::AztecAddress::from_field(to), amount, nonce);
+    0
 }

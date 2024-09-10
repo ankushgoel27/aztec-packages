@@ -67,7 +67,8 @@ impl<T> BalancesMap<T, &mut PrivateContext> {
             let context = self.map.context;
 
             // We fetch the nullifier public key hash from the registry / from our PXE
-            let owner_npk_m_hash = get_current_public_keys(context, owner).npk_m.hash();
+            // let owner_npk_m_hash = get_current_public_keys(context, owner).npk_m.hash();
+            let owner_npk_m_hash = 0;
             let mut addend_note = T::new(addend, owner_npk_m_hash);
 
             // docs:start:insert
