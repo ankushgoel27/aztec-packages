@@ -12,12 +12,14 @@ import {
   Gas,
   L2ToL1Message,
   LogHash,
+  MAX_PACKED_PUBLIC_BYTECODE_SIZE_IN_FIELDS,
   NoteHash,
   Nullifier,
   type PublicCallRequest,
   ReadRequest,
   TreeLeafReadRequest,
 } from '@aztec/circuits.js';
+import { bufferAsFields } from '@aztec/foundation/abi';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { type ContractInstanceWithAddress } from '@aztec/types/contracts';
@@ -252,12 +254,15 @@ export class PublicSideEffectTrace implements PublicSideEffectTraceInterface {
 
     this.publicCallRequests.push(resultToPublicCallRequest(result));
 
+    // TODO: Check this is packed in the same way as during deployment
+    const encodedBytecode: Fr[] = bufferAsFields(bytecode, MAX_PACKED_PUBLIC_BYTECODE_SIZE_IN_FIELDS);
     this.avmCircuitHints.externalCalls.items.push(
       new AvmExternalCallHint(
         /*success=*/ new Fr(result.reverted ? 0 : 1),
         result.returnValues,
         gasUsed,
         result.endSideEffectCounter,
+        encodedBytecode,
       ),
     );
   }
