@@ -1,4 +1,4 @@
-import { MerkleTreeId, type ProcessedTx } from '@aztec/circuit-types';
+import { MerkleTreeId, type ProcessedTx, getTreeHeight } from '@aztec/circuit-types';
 import {
   ARCHIVE_HEIGHT,
   AppendOnlyTreeSnapshot,
@@ -258,21 +258,9 @@ export async function getBlockRootRollupInput(
     getPreviousRollupDataFromPublicInputs(rollupOutputRight, rollupProofRight, verificationKeyRight),
   ];
 
-  const getRootTreeSiblingPath = async (treeId: MerkleTreeId) => {
-    const { size } = await db.getTreeInfo(treeId);
-    const path = await db.getSiblingPath(treeId, size);
-    return path.toFields();
-  };
-
   // Get blocks tree
   const startArchiveSnapshot = await getTreeSnapshot(MerkleTreeId.ARCHIVE, db);
-  const newArchiveSiblingPathArray = await getRootTreeSiblingPath(MerkleTreeId.ARCHIVE);
-
-  const newArchiveSiblingPath = makeTuple(
-    ARCHIVE_HEIGHT,
-    i => (i < newArchiveSiblingPathArray.length ? newArchiveSiblingPathArray[i] : Fr.ZERO),
-    0,
-  );
+  const newArchiveSiblingPath = await getRootTreeSiblingPath(MerkleTreeId.ARCHIVE, db);
 
   return BlockRootRollupInputs.from({
     previousRollupData,
@@ -286,6 +274,12 @@ export async function getBlockRootRollupInput(
     previousBlockHash: Fr.ZERO,
     proverId,
   });
+}
+
+export async function getRootTreeSiblingPath<TID extends MerkleTreeId>(treeId: TID, db: MerkleTreeOperations) {
+  const { size } = await db.getTreeInfo(treeId);
+  const path = await db.getSiblingPath(treeId, size);
+  return padArrayEnd(path.toFields(), Fr.ZERO, getTreeHeight(treeId));
 }
 
 // Builds the inputs for the final root rollup circuit, without making any changes to trees

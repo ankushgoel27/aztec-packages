@@ -296,6 +296,10 @@ export class VerificationKeyData {
     return new VerificationKeyData(VerificationKeyAsFields.makeFake(), VerificationKey.makeFake().toBuffer());
   }
 
+  static makeEmpty(): VerificationKeyData {
+    return new VerificationKeyData(VerificationKeyAsFields.makeEmpty(), VerificationKeyAsFields.makeEmpty().toBuffer());
+  }
+
   /**
    * Serialize as a buffer.
    * @returns The buffer.

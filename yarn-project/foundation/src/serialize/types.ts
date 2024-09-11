@@ -35,6 +35,7 @@ type MapTuple<T extends any[], F extends (item: any) => any> = {
  * @see https://github.com/microsoft/TypeScript/issues/29841.
  * @param array - A tuple array.
  */
+// TODO(palla): Remove uses of any that hide type errors
 export function mapTuple<T extends any[], F extends (item: any) => any>(tuple: T, fn: F): MapTuple<T, F> {
   return tuple.map(fn) as MapTuple<T, F>;
 }
