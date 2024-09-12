@@ -12,7 +12,6 @@ export async function registerContractClass(
 ): Promise<ContractFunctionInteraction> {
   const { artifactHash, privateFunctionsRoot, publicBytecodeCommitment, packedBytecode } =
     getContractClassFromArtifact(artifact);
-  console.log('REGISTERED CONTRACT CLASS Public bytecode commitment: ', publicBytecodeCommitment.toString());
   const encodedBytecode = bufferAsFields(packedBytecode, MAX_PACKED_PUBLIC_BYTECODE_SIZE_IN_FIELDS);
   const registerer = getRegistererContract(wallet);
   await wallet.addCapsule(encodedBytecode);

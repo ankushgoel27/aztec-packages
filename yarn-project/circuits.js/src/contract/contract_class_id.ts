@@ -36,7 +36,6 @@ export function computeContractClassIdWithPreimage(
     'publicBytecodeCommitment' in contractClass
       ? contractClass.publicBytecodeCommitment
       : computePublicBytecodeCommitment(contractClass.packedBytecode);
-  console.log('PUBLIC BYTECODE COMMITMENT: ', publicBytecodeCommitment.toString());
   const id = poseidon2HashWithSeparator(
     [artifactHash, privateFunctionsRoot, publicBytecodeCommitment],
     GeneratorIndex.CONTRACT_LEAF, // TODO(@spalladino): Review all generator indices in this file
@@ -64,10 +63,9 @@ export function computePublicBytecodeCommitment(packedBytecode: Buffer) {
   // Convert Buffer into chunks of field elements
   const encodedBytecode: Fr[] = bufferAsFields(packedBytecode, MAX_PACKED_PUBLIC_BYTECODE_SIZE_IN_FIELDS);
   // Hash it
-  let bytecodeCommitment = poseidon2Hash([encodedBytecode[0]]);
-  for (let i = 1; i < encodedBytecode.length; i++) {
-    bytecodeCommitment = poseidon2Hash([bytecodeCommitment, encodedBytecode[i]]);
+  let bytecodeCommitment = new Fr(0);
+  for (let i = 0; i < encodedBytecode.length; i++) {
+    bytecodeCommitment = poseidon2Hash([encodedBytecode[i], bytecodeCommitment]);
   }
   return bytecodeCommitment;
-  // return new Fr(5);
 }

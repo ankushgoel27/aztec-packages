@@ -20,6 +20,7 @@
 #include "barretenberg/numeric/uint256/uint256.hpp"
 #include "barretenberg/polynomials/univariate.hpp"
 #include "barretenberg/vm/avm/generated/full_row.hpp"
+#include "barretenberg/vm/avm/trace/bytecode_trace.hpp"
 #include "barretenberg/vm/avm/trace/common.hpp"
 #include "barretenberg/vm/avm/trace/fixed_bytes.hpp"
 #include "barretenberg/vm/avm/trace/fixed_gas.hpp"
@@ -3433,6 +3434,7 @@ void AvmTraceBuilder::op_keccakf1600(uint8_t indirect,
  */
 std::vector<Row> AvmTraceBuilder::finalize(bool range_check_required)
 {
+
     auto mem_trace = mem_trace_builder.finalize();
     auto conv_trace = conversion_trace_builder.finalize();
     auto sha256_trace = sha256_trace_builder.finalize();
@@ -3697,6 +3699,26 @@ std::vector<Row> AvmTraceBuilder::finalize(bool range_check_required)
      **********************************************************************************************/
 
     kernel_trace_builder.finalize(main_trace);
+
+    /**********************************************************************************************
+     * BYTECODE TRACE INCLUSION
+     **********************************************************************************************/
+    // For now we just calculate bytecode hashing, but we will do more here
+    // std::vector<FF> bytecode = execution_hints.externalcall_hints.at(0).packed_bytecode;
+    std::vector<std::vector<FF>> all_contracts_bytecode;
+    all_contracts_bytecode.reserve(execution_hints.externalcall_hints.size());
+    for (auto const& hint : execution_hints.externalcall_hints) {
+        all_contracts_bytecode.push_back(hint.packed_bytecode);
+    }
+
+    // This interface will change when we start feeding in more inputs and hints
+    auto avm_bytecode_builder = AvmBytecodeTraceBuilder(all_contracts_bytecode);
+    avm_bytecode_builder.build_bytecode_columns();
+    if (avm_bytecode_builder.size() > main_trace_size) {
+        main_trace_size = avm_bytecode_builder.size();
+        main_trace.resize(main_trace_size, {});
+    }
+    avm_bytecode_builder.finalize(main_trace);
 
     /**********************************************************************************************
      * ONLY FIXED TABLES FROM HERE ON

@@ -35,9 +35,11 @@ contract ContractClassRegisterer {
         let packed_public_bytecode: [Field; MAX_PACKED_PUBLIC_BYTECODE_SIZE_IN_FIELDS] = pop_capsule();
         // docs:end:pop_capsule
 
-        let mut computed_public_bytecode_commitment = std::hash::poseidon2::Poseidon2::hash([packed_public_bytecode[0],0],2);
-        for i in 1..MAX_PACKED_PUBLIC_BYTECODE_SIZE_IN_FIELDS {
-            computed_public_bytecode_commitment = std::hash::poseidon2::Poseidon2::hash([computed_public_bytecode_commitment, packed_public_bytecode[i]],2);
+        let mut computed_public_bytecode_commitment = 0;
+        for i in 0..MAX_PACKED_PUBLIC_BYTECODE_SIZE_IN_FIELDS {
+            // While we are forced to run the hash MAX_PACKED_PUBLIC_BYTECODE_SIZE_IN_FIELDS times in the circuit,
+            // for future reasons, we may want the computed_public_bytecode_commitment to be based on the real bytecode length
+            computed_public_bytecode_commitment = std::hash::poseidon2::Poseidon2::hash([packed_public_bytecode[i],computed_public_bytecode_commitment],2);
         }
         assert_eq(computed_public_bytecode_commitment, public_bytecode_commitment);
 
