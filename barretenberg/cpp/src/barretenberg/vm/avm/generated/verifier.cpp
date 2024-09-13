@@ -65,8 +65,8 @@ bool AvmVerifier::verify_proof(const HonkProof& proof,
     CommitmentLabels commitment_labels;
 
     const auto circuit_size = transcript->template receive_from_prover<uint32_t>("circuit_size");
-
     if (circuit_size != key->circuit_size) {
+        vinfo("Circuit size mismatch: ", circuit_size, " vs ", key->circuit_size);
         return false;
     }
 
@@ -99,7 +99,8 @@ bool AvmVerifier::verify_proof(const HonkProof& proof,
         sumcheck.verify(relation_parameters, alpha, gate_challenges);
 
     // If Sumcheck did not verify, return false
-    if (sumcheck_verified.has_value() && !sumcheck_verified.value()) {
+    if (!sumcheck_verified.has_value() || !sumcheck_verified.value()) {
+        vinfo("Sumcheck verification failed");
         return false;
     }
 
@@ -109,28 +110,34 @@ bool AvmVerifier::verify_proof(const HonkProof& proof,
 
     FF main_kernel_inputs_evaluation = evaluate_public_input_column(public_inputs[0], circuit_size, mle_challenge);
     if (main_kernel_inputs_evaluation != claimed_evaluations.main_kernel_inputs) {
+        vinfo("main_kernel_inputs_evaluation failed");
         return false;
     }
     FF main_kernel_value_out_evaluation = evaluate_public_input_column(public_inputs[1], circuit_size, mle_challenge);
     if (main_kernel_value_out_evaluation != claimed_evaluations.main_kernel_value_out) {
+        vinfo("main_kernel_value_out_evaluation failed");
         return false;
     }
     FF main_kernel_side_effect_out_evaluation =
         evaluate_public_input_column(public_inputs[2], circuit_size, mle_challenge);
     if (main_kernel_side_effect_out_evaluation != claimed_evaluations.main_kernel_side_effect_out) {
+        vinfo("main_kernel_side_effect_out_evaluation failed");
         return false;
     }
     FF main_kernel_metadata_out_evaluation =
         evaluate_public_input_column(public_inputs[3], circuit_size, mle_challenge);
     if (main_kernel_metadata_out_evaluation != claimed_evaluations.main_kernel_metadata_out) {
+        vinfo("main_kernel_metadata_out_evaluation failed");
         return false;
     }
     FF main_calldata_evaluation = evaluate_public_input_column(public_inputs[4], circuit_size, mle_challenge);
     if (main_calldata_evaluation != claimed_evaluations.main_calldata) {
+        vinfo("main_calldata_evaluation failed");
         return false;
     }
     FF main_returndata_evaluation = evaluate_public_input_column(public_inputs[5], circuit_size, mle_challenge);
     if (main_returndata_evaluation != claimed_evaluations.main_returndata) {
+        vinfo("main_returndata_evaluation failed");
         return false;
     }
 
@@ -147,8 +154,14 @@ bool AvmVerifier::verify_proof(const HonkProof& proof,
                                            transcript);
 
     auto pairing_points = PCS::reduce_verify(opening_claim, transcript);
-    auto verified = key->pcs_verification_key->pairing_check(pairing_points[0], pairing_points[1]);
-    return sumcheck_verified.value() && verified;
+    auto zeromorph_verified = key->pcs_verification_key->pairing_check(pairing_points[0], pairing_points[1]);
+
+    if (!zeromorph_verified) {
+        vinfo("ZeroMorph verification failed");
+        return false;
+    }
+
+    return true;
 }
 
 } // namespace bb

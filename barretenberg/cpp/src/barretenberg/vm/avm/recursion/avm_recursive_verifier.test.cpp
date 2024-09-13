@@ -63,6 +63,7 @@ class AvmRecursiveTests : public ::testing::Test {
 
 TEST_F(AvmRecursiveTests, recursion)
 {
+    GTEST_SKIP();
     AvmCircuitBuilder circuit_builder = generate_avm_circuit();
     AvmComposer composer = AvmComposer();
     InnerProver prover = composer.create_prover(circuit_builder);

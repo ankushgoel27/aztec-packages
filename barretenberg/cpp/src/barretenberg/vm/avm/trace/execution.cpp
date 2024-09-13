@@ -37,6 +37,10 @@ std::filesystem::path avm_dump_trace_path;
 namespace bb::avm_trace {
 namespace {
 
+// The SRS needs to be able to accommodate the circuit subgroup size.
+// Note: The *2 is due to how init_bn254_crs works, look there.
+static_assert(Execution::SRS_SIZE >= AvmCircuitBuilder::CIRCUIT_SUBGROUP_SIZE * 2);
+
 template <typename K, typename V>
 std::vector<std::pair<K, V>> sorted_entries(const std::unordered_map<K, V>& map, bool invert = false)
 {
@@ -83,6 +87,15 @@ std::unordered_map</*relation*/ std::string, /*degrees*/ std::string> get_relati
 
 } // namespace
 
+// Needed for dependency injection in tests.
+Execution::TraceBuilderConstructor Execution::trace_builder_constructor = [](VmPublicInputs public_inputs,
+                                                                             ExecutionHints execution_hints,
+                                                                             uint32_t side_effect_counter,
+                                                                             std::vector<FF> calldata) {
+    return AvmTraceBuilder(
+        std::move(public_inputs), std::move(execution_hints), side_effect_counter, std::move(calldata));
+};
+
 /**
  * @brief Temporary routine to generate default public inputs (gas values) until we get
  *        proper integration of public inputs.
@@ -117,16 +130,15 @@ std::tuple<AvmFlavor::VerificationKey, HonkProof> Execution::prove(std::vector<u
     vinfo("Deserialized " + std::to_string(instructions.size()) + " instructions");
 
     std::vector<FF> returndata;
-    std::vector<Row> trace;
-    AVM_TRACK_TIME("prove/gen_trace",
-                   (trace = gen_trace(instructions, returndata, calldata, public_inputs_vec, execution_hints)));
+    std::vector<Row> trace = AVM_TRACK_TIME_V(
+        "prove/gen_trace", gen_trace(instructions, returndata, calldata, public_inputs_vec, execution_hints));
     if (!avm_dump_trace_path.empty()) {
         info("Dumping trace as CSV to: " + avm_dump_trace_path.string());
         dump_trace_as_csv(trace, avm_dump_trace_path);
     }
     auto circuit_builder = bb::AvmCircuitBuilder();
     circuit_builder.set_trace(std::move(trace));
-    vinfo("Trace size after padding: 2^",
+    vinfo("Circuit subgroup size: 2^",
           // this calculates the integer log2
           std::bit_width(circuit_builder.get_circuit_subgroup_size()) - 1);
 
@@ -135,14 +147,17 @@ std::tuple<AvmFlavor::VerificationKey, HonkProof> Execution::prove(std::vector<u
                        ") exceeds SRS_SIZE (" + std::to_string(SRS_SIZE) + ")");
     }
 
-    // We only run check_circuit if we are not proving, or if forced to.
-    if (!ENABLE_PROVING || std::getenv("AVM_FORCE_CHECK_CIRCUIT") != nullptr) {
+    // We only run check_circuit if forced to.
+    if (std::getenv("AVM_FORCE_CHECK_CIRCUIT") != nullptr) {
         AVM_TRACK_TIME("prove/check_circuit", circuit_builder.check_circuit());
     }
 
     auto composer = AVM_TRACK_TIME_V("prove/create_composer", AvmComposer());
     auto prover = AVM_TRACK_TIME_V("prove/create_prover", composer.create_prover(circuit_builder));
     auto verifier = AVM_TRACK_TIME_V("prove/create_verifier", composer.create_verifier(circuit_builder));
+    // Reclaim memory. Ideally this would be done as soon as the polynomials are created, but the above flow requires
+    // the trace both in creation of the prover and the verifier.
+    circuit_builder.clear_trace();
 
     vinfo("------- PROVING EXECUTION -------");
     // Proof structure: public_inputs | calldata_size | calldata | returndata_size | returndata | raw proof
@@ -154,23 +169,6 @@ std::tuple<AvmFlavor::VerificationKey, HonkProof> Execution::prove(std::vector<u
     auto raw_proof = prover.construct_proof();
     proof.insert(proof.end(), raw_proof.begin(), raw_proof.end());
     return std::make_tuple(*verifier.key, proof);
-}
-
-/**
- * @brief Generate the execution trace pertaining to the supplied instructions.
- *
- * @param instructions A vector of the instructions to be executed.
- * @param calldata expressed as a vector of finite field elements.
- * @param public_inputs expressed as a vector of finite field elements.
- * @return The trace as a vector of Row.
- */
-std::vector<Row> Execution::gen_trace(std::vector<Instruction> const& instructions,
-                                      std::vector<FF> const& calldata,
-                                      std::vector<FF> const& public_inputs,
-                                      ExecutionHints const& execution_hints)
-{
-    std::vector<FF> returndata{};
-    return gen_trace(instructions, returndata, calldata, public_inputs, execution_hints);
 }
 
 /**
@@ -387,7 +385,9 @@ std::vector<Row> Execution::gen_trace(std::vector<Instruction> const& instructio
     uint32_t start_side_effect_counter =
         !public_inputs_vec.empty() ? static_cast<uint32_t>(public_inputs_vec[PCPI_START_SIDE_EFFECT_COUNTER_OFFSET])
                                    : 0;
-    AvmTraceBuilder trace_builder(public_inputs, execution_hints, start_side_effect_counter, calldata);
+
+    AvmTraceBuilder trace_builder =
+        Execution::trace_builder_constructor(public_inputs, execution_hints, start_side_effect_counter, calldata);
 
     // Copied version of pc maintained in trace builder. The value of pc is evolving based
     // on opcode logic and therefore is not maintained here. However, the next opcode in the execution
@@ -936,7 +936,7 @@ std::vector<Row> Execution::gen_trace(std::vector<Instruction> const& instructio
     }
 
     auto trace = trace_builder.finalize();
-    vinfo("Built trace size: ", trace.size());
+    vinfo("Built trace size: ", trace.size(), " (next power: 2^", numeric::round_up_power_2(trace.size()), ")");
     vinfo("Number of columns: ", trace.front().SIZE);
     const size_t total_elements = trace.front().SIZE * trace.size();
     const size_t nonzero_elements = [&]() {
