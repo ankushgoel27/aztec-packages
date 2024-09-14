@@ -93,6 +93,12 @@ template <class Flavor> class DeciderProvingKey_ {
                                              circuit,
                                              dyadic_circuit_size);
 
+        if constexpr (IsMegaBuilder<Circuit>) {
+            // The homogenizer is always 1; WORKTODO TODO: it should become virtual
+            std::vector<FF> homogenizer_values(dyadic_circuit_size, 1);
+            proving_key.polynomials.homogenizer = Polynomial(std::span<FF>(homogenizer_values));
+        }
+
         // Construct the public inputs array
         for (size_t i = 0; i < proving_key.num_public_inputs; ++i) {
             size_t idx = i + proving_key.pub_inputs_offset;
