@@ -15,15 +15,21 @@ template <typename FF_, bool HOMOGENIZED> class UltraArithmeticRelationImpl {
     /**
      * @brief For ZK-Flavors: The degrees of subrelations considered as polynomials only in witness polynomials,
      * i.e. all selectors and public polynomials are treated as constants.
-     *
      */
     static constexpr std::array<size_t, 2> SUBRELATION_WITNESS_DEGREES{ 2, 2 };
 
     /**
      * @brief Returns true if the contribution from all subrelations for the provided inputs is identically zero
-     *
      */
     template <typename AllEntities> inline static bool skip(const AllEntities& in) { return in.q_arith.is_zero(); }
+
+    template <typename AllEntities>
+    inline static bool incoming_contribution_is_zero(const AllEntities& in)
+        requires ArrayAccessOnEntity<AllEntities>
+    {
+        // For folding multiple instances, we would do a constexpr loop over { idx = 1; idx < NUM_KEYS }
+        return in.q_arith[1] == 0;
+    }
 
     /**
      * @brief Expression for the Ultra Arithmetic gate.

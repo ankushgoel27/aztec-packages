@@ -1,4 +1,5 @@
 #pragma once
+#include "barretenberg/common/constexpr_utils.hpp"
 #include "barretenberg/common/container.hpp"
 #include "barretenberg/common/op_count.hpp"
 #include "barretenberg/common/thread.hpp"
@@ -195,11 +196,28 @@ template <class DeciderProvingKeys_> class ProtogalaxyProverInternal {
         }
     }
 
+    template <typename TupleOfUnivariates,
+              typename LagrangePolynomialPowers, /* i-th idx is L_0^i */
+              typename ArraysOfValues>
+    inline static void accumulate_zero_incoming_contribution(TupleOfUnivariates& relation_accumulator,
+                                                             const LagrangePolynomialPowers& L_0_pows,
+                                                             const ArraysOfValues& subrelation_values_on_accumulator)
+    {
+        constexpr_for</* Start */ 0, /* End */ subrelation_values_on_accumulator, /* Increment */ 1>([&]<size_t idx>() {
+            auto& subrelation_accumulator = std::get<idx>(relation_accumulator);
+            static constexpr size_t homogeneous_degree = subrelation_accumulator.size();
+            using View = typename decltype(subrelation_accumulator)::View;
+
+            subrelation_accumulator +=
+                View(L_0_pows[homogeneous_degree]) * std::get<idx>(subrelation_values_on_accumulator);
+        });
+    }
+
     /**
      * @brief Add the value of each relation over univariates to an appropriate accumulator
      *
-     * @tparam TupleOfTuplesOfUnivariates_ A tuple of univariate accumulators, where the univariates may be optimized to
-     * avoid computation on some indices.
+     * @tparam TupleOfTuplesOfUnivariates_ A tuple of univariate accumulators, where the univariates may be
+     * optimized to avoid computation on some indices.
      * @tparam ExtendedUnivariates_ T
      * @tparam Parameters relation parameters type
      * @tparam relation_idx The index of the relation
@@ -211,28 +229,37 @@ template <class DeciderProvingKeys_> class ProtogalaxyProverInternal {
     template <typename TupleOfTuplesOfUnivariates_,
               typename ExtendedUnivariates_,
               typename Parameters,
+              typename LagrangePowers,
+              typename TupleOfArraysOfValues,
               size_t relation_idx = 0>
-    static void accumulate_relation_univariates(TupleOfTuplesOfUnivariates_& univariate_accumulators,
+    static void accumulate_relation_univariates(TupleOfTuplesOfUnivariates_& full_accumulator,
                                                 const ExtendedUnivariates_& extended_univariates,
                                                 const Parameters& relation_parameters,
-                                                const FF& scaling_factor)
+                                                const FF& scaling_factor,
+                                                const LagrangePowers& L_0_pows,
+                                                const TupleOfArraysOfValues& evaluations_on_accumulator)
     {
         using Relation = std::tuple_element_t<relation_idx, Relations>;
+        auto& accumulator_for_one_relation = std::get<relation_idx>(full_accumulator);
 
         //  Check if the relation is skippable to speed up accumulation
         if constexpr (!isSkippable<Relation, decltype(extended_univariates)>) {
             // If not, accumulate normally
-            Relation::accumulate(std::get<relation_idx>(univariate_accumulators),
-                                 extended_univariates,
-                                 relation_parameters,
-                                 scaling_factor);
+            Relation::accumulate(
+                accumulator_for_one_relation, extended_univariates, relation_parameters, scaling_factor);
         } else {
             // If so, only compute the contribution if the relation is active
             if (!Relation::skip(extended_univariates)) {
-                Relation::accumulate(std::get<relation_idx>(univariate_accumulators),
-                                     extended_univariates,
-                                     relation_parameters,
-                                     scaling_factor);
+                if (Relation::incoming_contribution_is_zero(extended_univariates)) {
+                    static_assert(NUM_KEYS == 2,
+                                  "Sparse Protogalaxy is not implemented folding more than one decider key at a time.");
+                    auto& subrelation_evaluations = std::get<relation_idx>(evaluations_on_accumulator);
+                    accumulate_zero_incoming_contribution<Relation>(
+                        accumulator_for_one_relation, L_0_pows, subrelation_evaluations);
+                } else {
+                    Relation::accumulate(
+                        accumulator_for_one_relation, extended_univariates, relation_parameters, scaling_factor);
+                }
             }
         }
 
@@ -242,7 +269,7 @@ template <class DeciderProvingKeys_> class ProtogalaxyProverInternal {
                                             ExtendedUnivariates_,
                                             Parameters,
                                             relation_idx + 1>(
-                univariate_accumulators, extended_univariates, relation_parameters, scaling_factor);
+                full_accumulator, extended_univariates, relation_parameters, scaling_factor);
         }
     }
 
@@ -257,12 +284,14 @@ template <class DeciderProvingKeys_> class ProtogalaxyProverInternal {
      * @param gate_separators
      * @return ExtendedUnivariateWithRandomization
      */
-    template <typename Parameters, typename TupleOfTuples>
-    static ExtendedUnivariateWithRandomization compute_combiner(const DeciderPKs& keys,
-                                                                const GateSeparatorPolynomial<FF>& gate_separators,
-                                                                const Parameters& relation_parameters,
-                                                                const UnivariateRelationSeparator& alphas,
-                                                                TupleOfTuples& univariate_accumulators)
+    template <typename Parameters, typename TupleOfTuples, typename TupleOfArraysOfValues>
+    static ExtendedUnivariateWithRandomization compute_combiner(
+        const DeciderPKs& keys,
+        const GateSeparatorPolynomial<FF>& gate_separators,
+        const Parameters& relation_parameters,
+        const UnivariateRelationSeparator& alphas,
+        TupleOfTuples& univariate_accumulators,
+        const TupleOfArraysOfValues& relation_values_on_accumulator)
     {
         BB_OP_COUNT_TIME();
 
@@ -296,6 +325,22 @@ template <class DeciderProvingKeys_> class ProtogalaxyProverInternal {
             RelationUtils::zero_univariates(accum);
         }
 
+        // Generate the powers of the L_0, the Lagrange polynomial centered at 0, needed for Sparse Protogalaxy
+        static constexpr size_t MAX_HOMOGENEOUS_DEGREE = Flavor::MAX_TOTAL_RELATION_LENGTH;
+        static constexpr auto L_0 = Univariate<FF, 2>{ 1, 0 }.template extend_to<MAX_HOMOGENEOUS_DEGREE>();
+        static constexpr std::array<Univariate<FF, MAX_HOMOGENEOUS_DEGREE>, MAX_HOMOGENEOUS_DEGREE> lagrange_powers =
+            [](const auto& L_0, const auto& DEG) {
+                std::array<Univariate<FF, DEG>, DEG> result;
+                result[0] = 0;
+                result[1] = L_0;
+                auto tmp = L_0;
+                std::generate(result.begin() + 2, result.end(), [&L_0, &tmp]() {
+                    tmp *= L_0;
+                    return tmp;
+                });
+                return result;
+            }(L_0, MAX_HOMOGENEOUS_DEGREE);
+
         // Construct extended univariates containers; one per thread
         std::vector<ExtendedUnivatiatesType> extended_univariates;
         extended_univariates.resize(num_threads);
@@ -306,21 +351,32 @@ template <class DeciderProvingKeys_> class ProtogalaxyProverInternal {
             const size_t end = (thread_idx + 1) * iterations_per_thread;
 
             for (size_t idx = start; idx < end; idx++) {
-                // Instantiate univariates, possibly with skipping toto ignore computation in those indices (they are
-                // still available for skipping relations, but all derived univariate will ignore those evaluations)
-                // No need to initialise extended_univariates to 0, as it's assigned to.
+                // Instantiate univariates, possibly with skipping to ignore computation in
+                // those indices (they are still available for skipping relations, but all derived
+                // univariate will ignore those evaluations) No need to initialise
+                // extended_univariates to 0, as it's assigned to.
                 constexpr size_t skip_count = skip_zero_computations ? DeciderPKs::NUM - 1 : 0;
+
+                // WORKTODO: At this point we can identify which relations vanish and only extend
+                // those univariates that will be needed for nonvanishing relations.  But I think
+                // this would be very manual? Still need to zero memory in any case. We could at
+                // least check whether all skip conditions hold and avoid extending univariates in
+                // that case...
                 extend_univariates<skip_count>(extended_univariates[thread_idx], keys, idx);
 
                 const FF pow_challenge = gate_separators[idx];
 
-                // Accumulate the i-th row's univariate contribution. Note that the relation parameters passed to
-                // this function have already been folded. Moreover, linear-dependent relations that act over the
-                // entire execution trace rather than on rows, will not be multiplied by the pow challenge.
+                // WORKTODO: maybe the skippability should move up here.
+
+                // Accumulate the i-th row's univariate contribution. Note that the relation
+                // parameters passed to this function have already been folded. Moreover,
+                // linear-dependent relations that act over the entire execution trace rather than
+                // on rows will not be multiplied by the pow challenge.
                 accumulate_relation_univariates(thread_univariate_accumulators[thread_idx],
                                                 extended_univariates[thread_idx],
                                                 relation_parameters, // these parameters have already been folded
-                                                pow_challenge);
+                                                pow_challenge,
+                                                lagrange_powers);
             }
         });
 
