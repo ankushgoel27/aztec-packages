@@ -233,7 +233,7 @@ contract Rollup is Leonidas, IRollup, ITestRollup {
       header.globalVariables.blockNumber, header.contentCommitment.outHash, l2ToL1TreeMinHeight
     );
 
-    emit L2BlockProposed(header.globalVariables.blockNumber);
+    emit L2BlockProposed(header.globalVariables.blockNumber, _archive);
 
     // Automatically flag the block as proven if we have cheated and set assumeProvenUntilBlockNumber.
     if (header.globalVariables.blockNumber < assumeProvenUntilBlockNumber) {
@@ -399,7 +399,10 @@ contract Rollup is Leonidas, IRollup, ITestRollup {
    * @return bytes32 - The archive root of the block
    */
   function archiveAt(uint256 _blockNumber) external view override(IRollup) returns (bytes32) {
-    return blocks[_blockNumber].archive;
+    if (_blockNumber < pendingBlockCount) {
+      return blocks[_blockNumber].archive;
+    }
+    return bytes32(0);
   }
 
   /**
