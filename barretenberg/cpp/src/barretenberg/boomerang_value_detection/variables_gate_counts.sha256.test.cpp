@@ -31,14 +31,14 @@ TEST(ultra_circuit_constructor, test_variables_gate_counts_for_sha256_55_bytes)
     // accounting for the single padding bit, and the 64 size bits required by the SHA-256 standard.
     auto builder = Builder();
     packed_byte_array_ct input(&builder, "An 8 character password? Snow White and the 7 Dwarves..");
-
     packed_byte_array_ct output_bits = stdlib::sha256(input);
 
-    // std::vector<field_ct> output = output_bits.to_unverified_byte_slices(4);
-
     Graph graph = Graph(builder);
+    info("num gates == ", builder.get_num_gates());
     std::unordered_set<uint32_t> variables_in_on_gate = graph.show_variables_in_one_gate(builder);
     std::vector<uint32_t> vector_variables_in_on_gate(variables_in_on_gate.begin(), variables_in_on_gate.end());
+    bool result = CircuitChecker::check(builder);
+    EXPECT_EQ(result, true);
     std::sort(vector_variables_in_on_gate.begin(), vector_variables_in_on_gate.end());
     for (const auto& elem : vector_variables_in_on_gate) {
         info("elem == ", elem);
@@ -63,7 +63,7 @@ TEST(ultra_circuit_constructor, test_boomerang_value_in_sha256)
         auto change_variable = fr::random_element();
         auto change_var_slice = uint256_t(change_variable).slice(0, 32);
         field_t change_elt(&builder, fr(change_var_slice));
-        uint32_t variable_index = w_ext[62].witness_index;
+        uint32_t variable_index = w_ext[63].witness_index;
         if (builder.variables[builder.real_variable_index[variable_index]] != fr(change_var_slice)) {
             builder.variables[builder.real_variable_index[variable_index]] = fr(change_var_slice);
             bool result2 = CircuitChecker::check(builder);
