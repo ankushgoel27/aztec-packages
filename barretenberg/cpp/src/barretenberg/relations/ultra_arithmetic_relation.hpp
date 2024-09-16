@@ -113,7 +113,7 @@ template <typename FF_, bool HOMOGENIZED> class UltraArithmeticRelationImpl {
                 auto hom_to_3 = hom * hom_to_2;
                 auto q_arith_to_2 = q_arith.sqr();
 
-                auto tmp = neg_half * w_l * w_r * q_m * q_arith_to_2 + three_halves * w_l * w_r * q_m * q_arith * hom +
+                auto tmp = w_l * w_r * q_m * q_arith_to_2 * neg_half + w_l * w_r * q_m * q_arith * hom * three_halves +
                            w_l * q_l * q_arith * hom_to_2 + w_r * q_r * q_arith * hom_to_2 +
                            w_o * q_o * q_arith * hom_to_2 + w_4 * q_4 * q_arith * hom_to_2 +
                            w_4_shift * q_arith_to_2 * hom_to_2 - w_4_shift * q_arith * hom_to_3 +
