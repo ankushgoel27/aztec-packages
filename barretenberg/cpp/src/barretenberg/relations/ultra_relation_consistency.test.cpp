@@ -132,32 +132,35 @@ class UltraRelationConsistency : public testing::Test {
         std::fill(accumulator.begin(), accumulator.end(), FF(0));
         typename RelHomog::SumcheckArrayOfValuesOverSubrelations accumulator_homog;
         std::fill(accumulator_homog.begin(), accumulator_homog.end(), FF(0));
-
         const auto parameters = RelationParameters<FF>::get_random(&engine);
-        FF separator{ 1 };
+        const FF separator{ 1 };
+
         Rel::accumulate(accumulator, input_elements, parameters, separator);
         RelHomog::accumulate(accumulator_homog, input_elements, parameters, separator);
         EXPECT_EQ(accumulator, accumulator_homog);
     };
 
-    template <template <typename, bool> typename Relation> static void validate_homogeneity(const InputElements& in)
+    template <template <typename, bool> typename Relation> static void validate_homogeneity()
     {
         using Rel = Relation<FF, /* HOMOGENIZED= */ true>;
 
+        const InputElements in = InputElements::get_random();
         typename Rel::SumcheckArrayOfValuesOverSubrelations acc;
         std::fill(acc.begin(), acc.end(), FF(0));
         typename Rel::SumcheckArrayOfValuesOverSubrelations acc_scaled_input;
         std::fill(acc_scaled_input.begin(), acc_scaled_input.end(), FF(0));
 
         const auto params = RelationParameters<FF>::get_random(&engine);
-        FF separator{ 1 };
-        FF scalar = FF::random_element(&engine);
-        InputElements in_scaled = in.scaled(scalar);
-        RelationParameters<FF> params_scaled{ params };
+        const FF separator{ 1 };
+        const FF scalar = FF::random_element(&engine);
+        const InputElements in_scaled = in.scaled(scalar);
+        const RelationParameters<FF> params_scaled{ params };
 
-        Rel::accumulate(acc, in, params, separator); // f(in) = (f_i(in))_i i over subrelations of f
-        Rel::accumulate(acc_scaled_input, in_scaled, params_scaled, separator); // f_i(s*in) == (s^d_i*f_i(in))_i
-        for (auto [x, len] : zip_view(acc, Rel::SUBRELATION_TOTAL_LENGTHS)) {
+        Rel::accumulate(acc, in, params, separator); // f(in) = (f_i(in))_i   (i over subrelations of f)
+        Rel::accumulate(acc_scaled_input, in_scaled, params_scaled, separator); // f_i(s*in) = (s^d_i*f_i(in))_i
+
+        for (auto [x, len] : zip_view(acc, Rel::SUBRELATION_TOTAL_LENGTHS)) { // compute (s^d_i*f_i(in))_i
+            ASSERT(len > 1);
             x *= scalar.pow(len - 1);
         }
         EXPECT_EQ(acc, acc_scaled_input);
@@ -664,6 +667,5 @@ TEST_F(UltraRelationConsistency, HomogenizationConsistency)
 
 TEST_F(UltraRelationConsistency, Homogeneity)
 {
-    InputElements input_elements = InputElements::get_random();
-    validate_homogeneity<UltraArithmeticRelation>(input_elements);
+    validate_homogeneity<UltraArithmeticRelation>();
 };
