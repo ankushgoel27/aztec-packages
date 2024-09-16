@@ -107,6 +107,7 @@ AvmCircuitBuilder::ProverPolynomials AvmCircuitBuilder::compute_polynomials() co
                 polys.alu_sel_shift_which.set_if_valid_index(i, rows[i].alu_sel_shift_which);
                 polys.alu_u128_tag.set_if_valid_index(i, rows[i].alu_u128_tag);
                 polys.alu_u16_tag.set_if_valid_index(i, rows[i].alu_u16_tag);
+                polys.alu_u1_tag.set_if_valid_index(i, rows[i].alu_u1_tag);
                 polys.alu_u32_tag.set_if_valid_index(i, rows[i].alu_u32_tag);
                 polys.alu_u64_tag.set_if_valid_index(i, rows[i].alu_u64_tag);
                 polys.alu_u8_tag.set_if_valid_index(i, rows[i].alu_u8_tag);

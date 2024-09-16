@@ -1,6 +1,7 @@
 #include "barretenberg/vm/avm/trace/deserialization.hpp"
 #include "barretenberg/common/throw_or_abort.hpp"
 #include "barretenberg/vm/avm/trace/common.hpp"
+#include "barretenberg/vm/avm/trace/helper.hpp"
 #include "barretenberg/vm/avm/trace/opcode.hpp"
 
 #include <cassert>

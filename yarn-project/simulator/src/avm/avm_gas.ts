@@ -263,8 +263,9 @@ export function getGasCostForTypeTag(tag: TypeTag, baseCost: Gas) {
 }
 
 /** Returns a multiplier based on the size of the type represented by the tag. Throws on uninitialized or invalid. */
-function getGasCostMultiplierFromTypeTag(tag: TypeTag) {
+function getGasCostMultiplierFromTypeTag(tag: TypeTag): number {
   switch (tag) {
+    case TypeTag.UINT1: // same as u8
     case TypeTag.UINT8:
       return 1;
     case TypeTag.UINT16:
