@@ -106,19 +106,18 @@ template <typename FF_, bool HOMOGENIZED> class UltraArithmeticRelationImpl {
             auto q_arith = View(in.q_arith);
 
             static constexpr FF neg_half = FF(-2).invert();
-
+            static constexpr FF three_halves = -(neg_half + neg_half + neg_half);
             if constexpr (HOMOGENIZED) {
                 auto hom = View(in.homogenizer);
                 auto hom_to_2 = hom.sqr();
                 auto hom_to_3 = hom * hom_to_2;
-                auto hom_to_4 = hom_to_2.sqr();
                 auto q_arith_to_2 = q_arith.sqr();
 
-                auto tmp = w_l * w_r * q_m * q_arith_to_2 * neg_half - w_l * w_r * q_m * q_arith * neg_half * hom * 3 +
-                           w_l * q_l * q_arith * hom_to_3 + w_r * q_r * q_arith * hom_to_3 +
-                           w_o * q_o * q_arith * hom_to_3 + w_4 * q_4 * q_arith * hom_to_3 +
-                           w_4_shift * q_arith_to_2 * hom_to_3 - w_4_shift * q_arith * hom_to_4 +
-                           q_c * q_arith * hom_to_4;
+                auto tmp = neg_half * w_l * w_r * q_m * q_arith_to_2 + three_halves * w_l * w_r * q_m * q_arith * hom +
+                           w_l * q_l * q_arith * hom_to_2 + w_r * q_r * q_arith * hom_to_2 +
+                           w_o * q_o * q_arith * hom_to_2 + w_4 * q_4 * q_arith * hom_to_2 +
+                           w_4_shift * q_arith_to_2 * hom_to_2 - w_4_shift * q_arith * hom_to_3 +
+                           q_c * q_arith * hom_to_3;
                 tmp *= scaling_factor;
                 std::get<0>(evals) += tmp;
             } else {
