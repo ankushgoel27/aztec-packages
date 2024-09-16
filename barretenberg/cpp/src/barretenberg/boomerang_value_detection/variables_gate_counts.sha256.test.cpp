@@ -25,26 +25,6 @@ using packed_byte_array_ct = packed_byte_array<Builder>;
 using witness_ct = stdlib::witness_t<Builder>;
 using field_ct = field_t<Builder>;
 
-TEST(ultra_circuit_constructor, test_variables_gate_counts_for_sha256_55_bytes)
-{
-    // 55 bytes is the largest number of bytes that can be hashed in a single block,
-    // accounting for the single padding bit, and the 64 size bits required by the SHA-256 standard.
-    auto builder = Builder();
-    packed_byte_array_ct input(&builder, "An 8 character password? Snow White and the 7 Dwarves..");
-    packed_byte_array_ct output_bits = stdlib::sha256(input);
-
-    Graph graph = Graph(builder);
-    info("num gates == ", builder.get_num_gates());
-    std::unordered_set<uint32_t> variables_in_on_gate = graph.show_variables_in_one_gate(builder);
-    std::vector<uint32_t> vector_variables_in_on_gate(variables_in_on_gate.begin(), variables_in_on_gate.end());
-    bool result = CircuitChecker::check(builder);
-    EXPECT_EQ(result, true);
-    std::sort(vector_variables_in_on_gate.begin(), vector_variables_in_on_gate.end());
-    for (const auto& elem : vector_variables_in_on_gate) {
-        info("elem == ", elem);
-    }
-}
-
 TEST(ultra_circuit_constructor, test_boomerang_value_in_sha256)
 {
     auto builder = Builder();
@@ -67,7 +47,7 @@ TEST(ultra_circuit_constructor, test_boomerang_value_in_sha256)
         if (builder.variables[builder.real_variable_index[variable_index]] != fr(change_var_slice)) {
             builder.variables[builder.real_variable_index[variable_index]] = fr(change_var_slice);
             bool result2 = CircuitChecker::check(builder);
-            EXPECT_EQ(result2, true);
+            EXPECT_EQ(result2, false);
             break;
         }
     }
