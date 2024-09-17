@@ -134,7 +134,7 @@ describe('e2e_cross_chain_messaging', () => {
     );
 
     // Since the outbox is only consumable when the block is proven, we need to set the block to be proven
-    await rollup.write.setAssumeProvenUntilBlockNumber([await rollup.read.pendingBlockCount()]);
+    await rollup.write.setAssumeProvenUntilBlockNumber([(await rollup.read.pendingBlockNum()) + 1n]);
 
     // Check balance before and after exit.
     expect(await crossChainTestHarness.getL1BalanceOf(ethAccount)).toBe(l1TokenBalance - bridgeAmount);
